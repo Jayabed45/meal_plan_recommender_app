@@ -262,7 +262,7 @@ if (!$meal_plan) {
         <div class="flex flex-col h-full">
             <!-- Logo -->
             <div class="p-4 sm:p-6 border-b">
-                <h1 class="text-xl sm:text-2xl font-bold text-primary">Meal Plan App</h1>
+                <h1 class="text-xl sm:text-2xl font-bold text-primary">M P R A</h1>
             </div>
             
             <!-- Navigation -->

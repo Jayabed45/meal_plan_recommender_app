@@ -89,7 +89,7 @@ function formatTime($time) {
         <div class="flex flex-col h-full">
             <!-- Logo -->
             <div class="p-6 border-b">
-                <h1 class="text-2xl font-bold text-primary">Meal Plan App</h1>
+                <h1 class="text-2xl font-bold text-primary">M P R A</h1>
             </div>
             
             <!-- Navigation -->

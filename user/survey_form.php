@@ -48,7 +48,7 @@ $stmt->close();
     <nav class="bg-white shadow-sm sticky top-0 z-10">
         <div class="max-w-3xl mx-auto px-4 sm:px-6 py-4">
             <div class="flex items-center justify-between">
-                <h1 class="text-xl font-semibold text-primary">Meal Plan App</h1>
+                <h1 class="text-xl font-semibold text-primary">Meal Plan Recommender App</h1>
                 <a href="user_dashboard.php" 
                    class="inline-flex items-center px-3 sm:px-4 py-2 bg-gray-200 hover:bg-gray-300 text-gray-700 rounded-lg transition-colors duration-200 font-medium text-sm">
                     <svg class="w-4 h-4 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">

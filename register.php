@@ -54,7 +54,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 <head>
     <meta charset="UTF-8" />
     <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <title>Meal Plan Recommender - Register</title>
+    <title>Meal Plan Recommender App</title>
     <script src="https://cdn.tailwindcss.com"></script>
     <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
 </head>
@@ -66,7 +66,7 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                 <div class="flex items-center">
                     <div class="flex-shrink-0 flex items-center">
                         <i class="fas fa-utensils text-2xl text-blue-600"></i>
-                        <span class="ml-2 text-xl font-bold text-gray-800">MealPlan</span>
+                        <span class="ml-2 text-xl font-bold text-gray-800">Meal Plan Recommender App</span>
                     </div>
                 </div>
                 <div class="flex items-center">
