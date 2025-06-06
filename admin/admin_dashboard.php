@@ -20,21 +20,52 @@ $stmt->close();
 
 // Fetch unread notifications
 $stmt = $conn->prepare("
-  SELECT an.id AS notification_id, s.id AS survey_id, u.username, s.goal, s.submitted_at
-  FROM admin_notifications an
-  JOIN surveys s ON an.survey_id = s.id
-  JOIN users u ON s.user_id = u.id
-  WHERE an.is_read = 0
-  ORDER BY s.submitted_at DESC
+    SELECT 
+        an.id AS notification_id,
+        s.id AS survey_id,
+        u.username,
+        s.goal,
+        s.health_conditions,
+        s.dietary_restrictions,
+        s.food_allergies,
+        s.submitted_at
+    FROM admin_notifications an
+    INNER JOIN surveys s ON an.survey_id = s.id
+    INNER JOIN users u ON s.user_id = u.id
+    WHERE an.is_read = 0
+    ORDER BY s.submitted_at DESC
 ");
-$stmt->execute();
+
+if ($stmt === false) {
+    die("Error preparing notifications query: " . $conn->error);
+}
+
+if (!$stmt->execute()) {
+    die("Error executing notifications query: " . $stmt->error);
+}
+
 $result = $stmt->get_result();
 $notifications = $result->fetch_all(MYSQLI_ASSOC);
 $stmt->close();
 
+// Debug information
+error_log("Number of notifications: " . count($notifications));
+foreach ($notifications as $note) {
+    error_log("Notification data - ID: " . $note['notification_id'] . 
+              ", Survey ID: " . $note['survey_id'] . 
+              ", Username: " . $note['username']);
+}
+
 // Fetch users excluding admins
 $user_stmt = $conn->prepare("SELECT id, username, email, role FROM users WHERE role != 'admin'");
-$user_stmt->execute();
+if ($user_stmt === false) {
+    die("Error preparing users query: " . $conn->error);
+}
+
+if (!$user_stmt->execute()) {
+    die("Error executing users query: " . $user_stmt->error);
+}
+
 $users_result = $user_stmt->get_result();
 $users = $users_result->fetch_all(MYSQLI_ASSOC);
 $user_stmt->close();
@@ -130,6 +161,15 @@ $total_users = count($users);
     <!-- Main Content -->
     <div class="lg:ml-64 min-h-screen">
         <div class="p-4 sm:p-6 lg:p-8">
+            <!-- Error Messages -->
+            <?php if (isset($_SESSION['error'])): ?>
+                <div class="mb-6 p-4 bg-red-50 border border-red-200 rounded-lg flex items-start space-x-3">
+                    <i class="fas fa-exclamation-circle text-red-500 mt-1"></i>
+                    <p class="text-red-600 font-medium"><?= htmlspecialchars($_SESSION['error']) ?></p>
+                </div>
+                <?php unset($_SESSION['error']); ?>
+            <?php endif; ?>
+
             <!-- Top Navigation -->
             <header class="mb-6 sm:mb-8">
                 <div class="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
@@ -176,6 +216,16 @@ $total_users = count($users);
                     <?php else: ?>
                         <div class="grid grid-cols-1 md:grid-cols-2 gap-4">
                             <?php foreach ($notifications as $note): ?>
+                                <?php 
+                                // Ensure we have valid IDs
+                                $survey_id = intval($note['survey_id']);
+                                $notification_id = intval($note['notification_id']);
+                                
+                                if ($survey_id <= 0 || $notification_id <= 0) {
+                                    error_log("Invalid IDs in notification - Survey ID: $survey_id, Notification ID: $notification_id");
+                                    continue;
+                                }
+                                ?>
                                 <div class="bg-gray-50 rounded-xl p-4 sm:p-5 hover:shadow-md transition-shadow">
                                     <div class="flex flex-col sm:flex-row sm:items-start sm:justify-between gap-4">
                                         <div class="space-y-3">
@@ -198,10 +248,29 @@ $total_users = count($users);
                                                     <i class="fas fa-bullseye text-blue-500 mr-2"></i>
                                                     Goal: <span class="font-medium"><?= htmlspecialchars($note['goal']) ?></span>
                                                 </p>
+                                                <?php if (!empty($note['health_conditions'])): ?>
+                                                <p class="text-sm text-gray-600 mt-2">
+                                                    <i class="fas fa-heartbeat text-red-500 mr-2"></i>
+                                                    Health Conditions: <span class="font-medium"><?= htmlspecialchars($note['health_conditions']) ?></span>
+                                                </p>
+                                                <?php endif; ?>
+                                                <?php if (!empty($note['dietary_restrictions'])): ?>
+                                                <p class="text-sm text-gray-600 mt-2">
+                                                    <i class="fas fa-utensils text-green-500 mr-2"></i>
+                                                    Dietary Restrictions: <span class="font-medium"><?= htmlspecialchars($note['dietary_restrictions']) ?></span>
+                                                </p>
+                                                <?php endif; ?>
+                                                <?php if (!empty($note['food_allergies'])): ?>
+                                                <p class="text-sm text-gray-600 mt-2">
+                                                    <i class="fas fa-exclamation-triangle text-yellow-500 mr-2"></i>
+                                                    Food Allergies: <span class="font-medium"><?= htmlspecialchars($note['food_allergies']) ?></span>
+                                                </p>
+                                                <?php endif; ?>
                                             </div>
                                         </div>
-                                        <a href="recommend_meal_plan.php?survey_id=<?= $note['survey_id'] ?>&notif_id=<?= $note['notification_id'] ?>" 
-                                           class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200">
+                                        <a href="recommend_meal_plan.php?survey_id=<?= $survey_id ?>&notif_id=<?= $notification_id ?>" 
+                                           class="inline-flex items-center justify-center px-4 py-2 bg-blue-600 text-white text-sm font-medium rounded-lg hover:bg-blue-700 transition-all duration-200"
+                                           onclick="console.log('Survey ID:', <?= $survey_id ?>, 'Notification ID:', <?= $notification_id ?>)">
                                             <i class="fas fa-eye mr-2"></i>
                                             Review
                                         </a>

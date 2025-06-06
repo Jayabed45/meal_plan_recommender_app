@@ -111,9 +111,70 @@ $stmt->close();
                 </div>
 
                 <div>
-                    <label for="dietary_restrictions" class="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">Dietary Restrictions (optional)</label>
-                    <textarea name="dietary_restrictions" id="dietary_restrictions" rows="3" 
-                              class="w-full px-3 py-2 text-base sm:text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors resize-none" placeholder="Any allergies or dietary preferences..."><?= htmlspecialchars($survey_data['dietary_restrictions'] ?? '') ?></textarea>
+                    <label for="health_conditions" class="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">Health Conditions (Select all that apply)</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" name="health_conditions[]" id="diabetes" value="diabetes" 
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['health_conditions']) && strpos($survey_data['health_conditions'], 'diabetes') !== false) ? 'checked' : '' ?>>
+                            <label for="diabetes" class="ml-2 text-sm text-gray-700">Diabetes</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="health_conditions[]" id="hypertension" value="hypertension"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['health_conditions']) && strpos($survey_data['health_conditions'], 'hypertension') !== false) ? 'checked' : '' ?>>
+                            <label for="hypertension" class="ml-2 text-sm text-gray-700">Hypertension</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="health_conditions[]" id="heart_disease" value="heart_disease"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['health_conditions']) && strpos($survey_data['health_conditions'], 'heart_disease') !== false) ? 'checked' : '' ?>>
+                            <label for="heart_disease" class="ml-2 text-sm text-gray-700">Heart Disease</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="health_conditions[]" id="celiac" value="celiac"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['health_conditions']) && strpos($survey_data['health_conditions'], 'celiac') !== false) ? 'checked' : '' ?>>
+                            <label for="celiac" class="ml-2 text-sm text-gray-700">Celiac Disease</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="dietary_restrictions" class="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">Dietary Restrictions (Select all that apply)</label>
+                    <div class="space-y-2">
+                        <div class="flex items-center">
+                            <input type="checkbox" name="dietary_restrictions[]" id="vegetarian" value="vegetarian"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['dietary_restrictions']) && strpos($survey_data['dietary_restrictions'], 'vegetarian') !== false) ? 'checked' : '' ?>>
+                            <label for="vegetarian" class="ml-2 text-sm text-gray-700">Vegetarian</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="dietary_restrictions[]" id="vegan" value="vegan"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['dietary_restrictions']) && strpos($survey_data['dietary_restrictions'], 'vegan') !== false) ? 'checked' : '' ?>>
+                            <label for="vegan" class="ml-2 text-sm text-gray-700">Vegan</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="dietary_restrictions[]" id="gluten_free" value="gluten_free"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['dietary_restrictions']) && strpos($survey_data['dietary_restrictions'], 'gluten_free') !== false) ? 'checked' : '' ?>>
+                            <label for="gluten_free" class="ml-2 text-sm text-gray-700">Gluten-Free</label>
+                        </div>
+                        <div class="flex items-center">
+                            <input type="checkbox" name="dietary_restrictions[]" id="lactose_free" value="lactose_free"
+                                   class="h-4 w-4 text-primary focus:ring-primary border-gray-300 rounded"
+                                   <?= (isset($survey_data['dietary_restrictions']) && strpos($survey_data['dietary_restrictions'], 'lactose_free') !== false) ? 'checked' : '' ?>>
+                            <label for="lactose_free" class="ml-2 text-sm text-gray-700">Lactose-Free</label>
+                        </div>
+                    </div>
+                </div>
+
+                <div>
+                    <label for="food_allergies" class="block text-sm font-medium text-gray-700 mb-1 sm:mb-2">Food Allergies (optional)</label>
+                    <textarea name="food_allergies" id="food_allergies" rows="2" 
+                              class="w-full px-3 py-2 text-base sm:text-lg border border-gray-300 rounded-lg focus:outline-none focus:ring-2 focus:ring-primary focus:border-primary transition-colors resize-none" 
+                              placeholder="List any food allergies (e.g., nuts, shellfish, eggs)..."><?= htmlspecialchars($survey_data['food_allergies'] ?? '') ?></textarea>
                 </div>
 
                 <div>

@@ -75,6 +75,9 @@ function formatTime($time) {
             }
         }
     </script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Add SweetAlert2 for beautiful notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
 </head>
 <body class="bg-gray-50 min-h-screen text-gray-800 font-sans">
     <!-- Mobile Menu Button -->
@@ -227,9 +230,128 @@ function formatTime($time) {
                     </p>
                 </div>
                 <?php endif; ?>
+
+                <!-- Age Group and Dietary Information -->
+                <?php
+                // Get user's survey information
+                $stmt = $conn->prepare("
+                    SELECT s.age, s.health_conditions, s.dietary_restrictions, s.food_allergies
+                    FROM surveys s
+                    JOIN user_meal_plans ump ON s.user_id = ump.user_id
+                    WHERE ump.id = ?
+                ");
+                $stmt->bind_param("i", $meal_plan_user_id);
+                $stmt->execute();
+                $survey = $stmt->get_result()->fetch_assoc();
+                $stmt->close();
+
+                if ($survey) {
+                    // Determine age group
+                    $age = $survey['age'] ?? 0;
+                    $age_group = '';
+                    if ($age > 0 && $age <= 12) {
+                        $age_group = 'child';
+                    } elseif ($age > 12 && $age <= 60) {
+                        $age_group = 'mid_age';
+                    } elseif ($age > 60) {
+                        $age_group = 'old';
+                    }
+                }
+                    // Get health conditions and dietary restrictions
+                    $health_conditions = array_filter(explode(',', $survey['health_conditions'] ?? ''));
+                    $dietary_restrictions = array_filter(explode(',', $survey['dietary_restrictions'] ?? ''));
+                    $food_allergies = $survey['food_allergies'] ?? '';
+
+                    if ($age_group || !empty($health_conditions) || !empty($dietary_restrictions) || $food_allergies):
+                ?>
+                <div class="p-4 sm:p-6 border-t border-gray-100">
+                    <h3 class="text-base sm:text-lg font-semibold text-gray-800 mb-3 sm:mb-4">Special Considerations</h3>
+                    <div class="space-y-4">
+                        <?php if ($age_group): ?>
+                        <div class="bg-light-blue rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z"/>
+                                </svg>
+                                <h4 class="font-medium text-gray-800">Age Group Recommendations</h4>
+                            </div>
+                            <p class="text-sm text-gray-600">
+                                <?php
+                                if ($age_group === 'child') {
+                                    echo "This meal plan has been tailored for children, with appropriate portion sizes and child-friendly options.";
+                                } elseif ($age_group === 'old') {
+                                    echo "This meal plan has been modified for older adults, focusing on nutrient density and ease of preparation.";
+                                }
+                                ?>
+                            </p>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($health_conditions)): ?>
+                        <div class="bg-light-blue rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M4.318 6.318a4.5 4.5 0 000 6.364L12 20.364l7.682-7.682a4.5 4.5 0 00-6.364-6.364L12 7.636l-1.318-1.318a4.5 4.5 0 00-6.364 0z"/>
+                                </svg>
+                                <h4 class="font-medium text-gray-800">Health Conditions</h4>
+                            </div>
+                            <p class="text-sm text-gray-600">
+                                This meal plan has been customized to accommodate: 
+                                <?= htmlspecialchars(implode(', ', $health_conditions)) ?>
+                            </p>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if (!empty($dietary_restrictions)): ?>
+                        <div class="bg-light-blue rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-primary mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M9 12l2 2 4-4m5.618-4.016A11.955 11.955 0 0112 2.944a11.955 11.955 0 01-8.618 3.04A12.02 12.02 0 003 9c0 5.591 3.824 10.29 9 11.622 5.176-1.332 9-6.03 9-11.622 0-1.042-.133-2.052-.382-3.016z"/>
+                                </svg>
+                                <h4 class="font-medium text-gray-800">Dietary Restrictions</h4>
+                            </div>
+                            <p class="text-sm text-gray-600">
+                                This meal plan has been modified to accommodate: 
+                                <?= htmlspecialchars(implode(', ', $dietary_restrictions)) ?>
+                            </p>
+                        </div>
+                        <?php endif; ?>
+
+                        <?php if ($food_allergies): ?>
+                        <div class="bg-red-50 rounded-lg p-4">
+                            <div class="flex items-center mb-2">
+                                <svg class="w-5 h-5 text-red-500 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                    <path stroke-linecap="round" stroke-linejoin="round" stroke-width="2" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z"/>
+                                </svg>
+                                <h4 class="font-medium text-red-800">Food Allergies</h4>
+                            </div>
+                            <p class="text-sm text-red-600">
+                                Please be aware of the following food allergies: 
+                                <?= htmlspecialchars($food_allergies) ?>
+                            </p>
+                        </div>
+                        <?php endif; ?>
+                    </div>
+                </div>
+                <?php endif; ?>
             </div>
         </div>
     </div>
+
+    <?php if (!$meal_plan['is_viewed']): ?>
+    <script>
+        // Show welcome notification when viewing meal plan for the first time
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                title: 'Welcome to Your Meal Plan!',
+                text: 'Your personalized meal plan has been created based on your preferences and goals. Take a moment to review it.',
+                icon: 'info',
+                confirmButtonText: 'Got it!',
+                confirmButtonColor: '#3085d6'
+            });
+        });
+    </script>
+    <?php endif; ?>
 
     <script>
         document.addEventListener('DOMContentLoaded', function() {

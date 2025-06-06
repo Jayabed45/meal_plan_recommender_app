@@ -51,8 +51,11 @@ if (!$meal_plan) {
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>User Dashboard</title>
+    <title>User Dashboard - Meal Plan Recommender</title>
     <script src="https://cdn.tailwindcss.com"></script>
+    <link href="https://cdnjs.cloudflare.com/ajax/libs/font-awesome/6.0.0/css/all.min.css" rel="stylesheet">
+    <!-- Add SweetAlert2 for beautiful notifications -->
+    <script src="https://cdn.jsdelivr.net/npm/sweetalert2@11"></script>
     <style>
         /* Added to troubleshoot mobile visibility */
         .take-survey-button, a[href="survey_form.php"] {
@@ -139,9 +142,9 @@ if (!$meal_plan) {
                                 <span class="text-gray-600 text-xs">${timeString}</span>
                             `;
                             
-                            // Add click handler to mark as read
+                            // Add click handler to show meal plan popup
                             item.addEventListener('click', () => {
-                                markNotificationAsRead(notification.id);
+                                showMealPlanNotification();
                             });
                             
                             notifList.appendChild(item);
@@ -153,22 +156,22 @@ if (!$meal_plan) {
                 .catch(error => console.error('Error checking notifications:', error));
         }
 
-        // Function to mark notification as read
-        function markNotificationAsRead(notificationId) {
-            fetch('mark_notification_read.php', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/json',
-                },
-                body: JSON.stringify({ notification_id: notificationId })
-            })
-            .then(response => response.json())
-            .then(data => {
-                if (data.success) {
-                    checkNotifications(); // Refresh notifications
+        // Function to show meal plan notification popup
+        function showMealPlanNotification() {
+            Swal.fire({
+                title: 'New Meal Plan Available!',
+                text: 'A new meal plan has been recommended for you. Click OK to view it.',
+                icon: 'success',
+                confirmButtonText: 'View Meal Plan',
+                confirmButtonColor: '#3085d6',
+                showCancelButton: true,
+                cancelButtonText: 'View Later',
+                cancelButtonColor: '#d33'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'view_meal_plan.php?id=<?= $meal_plan['ump_id'] ?>';
                 }
-            })
-            .catch(error => console.error('Error marking notification as read:', error));
+            });
         }
 
         // Check for notifications every minute
@@ -683,5 +686,27 @@ if (!$meal_plan) {
         </div>
         <?php endif; ?>
     </div>
+
+    <?php if ($meal_plan && !$meal_plan['is_viewed']): ?>
+    <script>
+        // Show notification when page loads if there's an unviewed meal plan
+        document.addEventListener('DOMContentLoaded', function() {
+            Swal.fire({
+                title: 'New Meal Plan Available!',
+                text: 'A new meal plan has been recommended for you. Click OK to view it.',
+                icon: 'success',
+                confirmButtonText: 'View Meal Plan',
+                confirmButtonColor: '#3085d6',
+                showCancelButton: true,
+                cancelButtonText: 'View Later',
+                cancelButtonColor: '#d33'
+            }).then((result) => {
+                if (result.isConfirmed) {
+                    window.location.href = 'view_meal_plan.php?id=<?= $meal_plan['ump_id'] ?>';
+                }
+            });
+        });
+    </script>
+    <?php endif; ?>
 </body>
 </html>

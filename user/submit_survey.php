@@ -15,7 +15,9 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
     $height_cm = intval($_POST['height_cm'] ?? 0);
     $weight_kg = floatval($_POST['weight_kg'] ?? 0);
     $activity_level = $_POST['activity_level'] ?? '';
-    $dietary_restrictions = $_POST['dietary_restrictions'] ?? null;
+    $health_conditions = isset($_POST['health_conditions']) ? implode(',', $_POST['health_conditions']) : null;
+    $dietary_restrictions = isset($_POST['dietary_restrictions']) ? implode(',', $_POST['dietary_restrictions']) : null;
+    $food_allergies = $_POST['food_allergies'] ?? null;
     $additional_notes = $_POST['additional_notes'] ?? null;
 
     // Basic validation
@@ -40,60 +42,67 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
 
         if ($existing_survey) {
             // Update existing survey
-            $stmt = $conn->prepare("UPDATE surveys SET goal = ?, age = ?, height_cm = ?, weight_kg = ?, activity_level = ?, dietary_restrictions = ?, additional_notes = ? WHERE user_id = ?");
-            $stmt->bind_param("siiisssi", $goal, $age, $height_cm, $weight_kg, $activity_level, $dietary_restrictions, $additional_notes, $user_id);
-            if ($stmt->execute()) {
-                 // Insert notification for admin on survey update
-                 $stmt->close();
-                 $stmt2 = $conn->prepare("INSERT INTO admin_notifications (survey_id) VALUES (?)");
-                 $stmt2->bind_param("i", $existing_survey['id']); // Use existing survey ID
-                 $stmt2->execute();
-                 $stmt2->close();
-
-                 // Create notification for user
-                 $stmt3 = $conn->prepare("INSERT INTO notifications (user_id, message, notify_time) VALUES (?, ?, NOW())");
-                 $message = "Your survey has been submitted. Waiting for admin to recommend a meal plan.";
-                 $stmt3->bind_param("is", $user_id, $message);
-                 $stmt3->execute();
-                 $stmt3->close();
-
-                 $_SESSION['survey_submitted'] = true; // Keep this session variable to indicate survey presence
-                 $_SESSION['awaiting_new_plan'] = true; // Set session variable to indicate waiting for new plan
-                 header("Location: user_dashboard.php");
-                 exit;
+            $stmt = $conn->prepare("UPDATE surveys SET goal = ?, age = ?, height_cm = ?, weight_kg = ?, activity_level = ?, health_conditions = ?, dietary_restrictions = ?, food_allergies = ?, additional_notes = ? WHERE user_id = ?");
+            if ($stmt === false) {
+                $errors[] = "Failed to prepare update statement: " . $conn->error;
             } else {
-                 $errors[] = "Failed to update survey.";
-                 $stmt->close();
-            }
+                $stmt->bind_param("siiisssssi", $goal, $age, $height_cm, $weight_kg, $activity_level, $health_conditions, $dietary_restrictions, $food_allergies, $additional_notes, $user_id);
+                if ($stmt->execute()) {
+                    // Insert notification for admin on survey update
+                    $stmt->close();
+                    $stmt2 = $conn->prepare("INSERT INTO admin_notifications (survey_id) VALUES (?)");
+                    $stmt2->bind_param("i", $existing_survey['id']); // Use existing survey ID
+                    $stmt2->execute();
+                    $stmt2->close();
 
+                    // Create notification for user
+                    $stmt3 = $conn->prepare("INSERT INTO notifications (user_id, message, notify_time) VALUES (?, ?, NOW())");
+                    $message = "Your survey has been submitted. Waiting for admin to recommend a meal plan.";
+                    $stmt3->bind_param("is", $user_id, $message);
+                    $stmt3->execute();
+                    $stmt3->close();
+
+                    $_SESSION['survey_submitted'] = true; // Keep this session variable to indicate survey presence
+                    $_SESSION['awaiting_new_plan'] = true; // Set session variable to indicate waiting for new plan
+                    header("Location: user_dashboard.php");
+                    exit;
+                } else {
+                    $errors[] = "Failed to update survey: " . $stmt->error;
+                }
+                $stmt->close();
+            }
         } else {
             // Insert new survey
-            $stmt = $conn->prepare("INSERT INTO surveys (user_id, goal, age, height_cm, weight_kg, activity_level, dietary_restrictions, additional_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?)");
-            $stmt->bind_param("isiiisss", $user_id, $goal, $age, $height_cm, $weight_kg, $activity_level, $dietary_restrictions, $additional_notes);
-            if ($stmt->execute()) {
-                $survey_id = $stmt->insert_id;
-
-                // Insert notification for admin only on initial survey submission
-                $stmt->close();
-                $stmt2 = $conn->prepare("INSERT INTO admin_notifications (survey_id) VALUES (?)");
-                $stmt2->bind_param("i", $survey_id);
-                $stmt2->execute();
-                $stmt2->close();
-
-                // Create notification for user
-                $stmt3 = $conn->prepare("INSERT INTO notifications (user_id, message, notify_time) VALUES (?, ?, NOW())");
-                $message = "Your survey has been submitted. Waiting for admin to recommend a meal plan.";
-                $stmt3->bind_param("is", $user_id, $message);
-                $stmt3->execute();
-                $stmt3->close();
-
-                $_SESSION['survey_submitted'] = true;
-                $_SESSION['awaiting_new_plan'] = true; // Set session variable to indicate waiting for new plan
-                header("Location: user_dashboard.php");
-                exit;
+            $stmt = $conn->prepare("INSERT INTO surveys (user_id, goal, age, height_cm, weight_kg, activity_level, health_conditions, dietary_restrictions, food_allergies, additional_notes) VALUES (?, ?, ?, ?, ?, ?, ?, ?, ?, ?)");
+            if ($stmt === false) {
+                $errors[] = "Failed to prepare insert statement: " . $conn->error;
             } else {
-                $errors[] = "Failed to submit survey.";
-                $stmt->close(); // Close the stmt if insert failed
+                $stmt->bind_param("isiiisssss", $user_id, $goal, $age, $height_cm, $weight_kg, $activity_level, $health_conditions, $dietary_restrictions, $food_allergies, $additional_notes);
+                if ($stmt->execute()) {
+                    $survey_id = $stmt->insert_id;
+
+                    // Insert notification for admin only on initial survey submission
+                    $stmt->close();
+                    $stmt2 = $conn->prepare("INSERT INTO admin_notifications (survey_id) VALUES (?)");
+                    $stmt2->bind_param("i", $survey_id);
+                    $stmt2->execute();
+                    $stmt2->close();
+
+                    // Create notification for user
+                    $stmt3 = $conn->prepare("INSERT INTO notifications (user_id, message, notify_time) VALUES (?, ?, NOW())");
+                    $message = "Your survey has been submitted. Waiting for admin to recommend a meal plan.";
+                    $stmt3->bind_param("is", $user_id, $message);
+                    $stmt3->execute();
+                    $stmt3->close();
+
+                    $_SESSION['survey_submitted'] = true;
+                    $_SESSION['awaiting_new_plan'] = true; // Set session variable to indicate waiting for new plan
+                    header("Location: user_dashboard.php");
+                    exit;
+                } else {
+                    $errors[] = "Failed to submit survey: " . $stmt->error;
+                }
+                $stmt->close();
             }
         }
     }

@@ -7,6 +7,63 @@ if (!isset($_SESSION['user_id']) || $_SESSION['role'] !== 'admin') {
     exit;
 }
 
+// Debug information
+error_log("GET parameters: " . print_r($_GET, true));
+
+// Validate parameters
+if (!isset($_GET['survey_id']) || !isset($_GET['notif_id'])) {
+    error_log("Missing parameters - Survey ID: " . (isset($_GET['survey_id']) ? $_GET['survey_id'] : 'not set') . 
+              ", Notification ID: " . (isset($_GET['notif_id']) ? $_GET['notif_id'] : 'not set'));
+    $_SESSION['error'] = "Missing required parameters. Please select a survey from the dashboard.";
+    header("Location: admin_dashboard.php");
+    exit;
+}
+
+$survey_id = intval($_GET['survey_id']);
+$notif_id = intval($_GET['notif_id']);
+
+if ($survey_id <= 0 || $notif_id <= 0) {
+    error_log("Invalid parameters - Survey ID: $survey_id, Notification ID: $notif_id");
+    $_SESSION['error'] = "Invalid survey or notification ID.";
+    header("Location: admin_dashboard.php");
+    exit;
+}
+
+// Fetch survey information
+$stmt = $conn->prepare("
+    SELECT s.*, u.username 
+    FROM surveys s 
+    JOIN users u ON s.user_id = u.id 
+    WHERE s.id = ?
+");
+
+if ($stmt === false) {
+    error_log("Error preparing survey query: " . $conn->error);
+    $_SESSION['error'] = "Database error occurred. Please try again.";
+    header("Location: admin_dashboard.php");
+    exit;
+}
+
+$stmt->bind_param("i", $survey_id);
+
+if (!$stmt->execute()) {
+    error_log("Error executing survey query: " . $stmt->error);
+    $_SESSION['error'] = "Error fetching survey information.";
+    header("Location: admin_dashboard.php");
+    exit;
+}
+
+$result = $stmt->get_result();
+$survey = $result->fetch_assoc();
+$stmt->close();
+
+if (!$survey) {
+    error_log("Survey not found - ID: $survey_id");
+    $_SESSION['error'] = "Survey not found.";
+    header("Location: admin_dashboard.php");
+    exit;
+}
+
 $admin_id = $_SESSION['user_id'];
 
 // Fetch admin username
@@ -18,153 +75,124 @@ $admin = $result->fetch_assoc();
 $username = $admin['username'];
 $stmt->close();
 
-$survey_id = intval($_GET['survey_id'] ?? 0);
-$notif_id = intval($_GET['notif_id'] ?? 0);
-
-if (!$survey_id || !$notif_id) {
-    die("Invalid parameters.");
-}
-
-// Fetch survey info + user id
-$stmt = $conn->prepare("SELECT * FROM surveys WHERE id = ?");
-$stmt->bind_param("i", $survey_id);
-$stmt->execute();
-$survey = $stmt->get_result()->fetch_assoc();
-$stmt->close();
-
-if (!$survey) {
-    die("Survey not found.");
-}
-
-// Define meal plan descriptions based on goals
+// Define meal plan descriptions based on goals, health conditions, and age groups
 $meal_plan_descriptions = [
-    'weight_loss' => "This meal plan is designed for healthy weight loss:
+    'weight_loss' => "This meal plan is designed for healthy weight loss:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Greek yogurt with berries and a sprinkle of nuts\n- Oatmeal with cinnamon and apple slices\n- Green tea or black coffee\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled chicken breast with mixed vegetables\n- Quinoa or brown rice (1/2 cup)\n- Large salad with olive oil dressing\n- Water or herbal tea\n\nDinner (6:00 PM - 7:00 PM):\n- Baked fish (salmon or tilapia)\n- Steamed vegetables\n- Sweet potato or small portion of whole grain\n- Herbal tea\n\nSnacks (if needed):\n- Apple with 1 tbsp almond butter\n- Carrot sticks with hummus\n- Handful of mixed nuts\n\nTips:\n- Stay hydrated with water throughout the day\n- Limit processed foods and added sugars\n- Focus on protein and fiber-rich foods\n- Practice portion control",
 
-Breakfast (7:00 AM - 8:00 AM):
-- Greek yogurt with berries and a sprinkle of nuts
-- Oatmeal with cinnamon and apple slices
-- Green tea or black coffee
+    'muscle_gain' => "This meal plan is optimized for muscle growth:\n\nBreakfast (7:00 AM - 8:00 AM):\n- 3-4 whole eggs with whole grain toast\n- Protein smoothie (banana, protein powder, milk, peanut butter)\n- Oatmeal with honey and nuts\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled chicken breast or lean beef\n- Brown rice or sweet potato\n- Mixed vegetables\n- Greek yogurt\n\nDinner (6:00 PM - 7:00 PM):\n- Salmon or lean meat\n- Quinoa or brown rice\n- Steamed vegetables\n- Avocado or olive oil\n\nPre/Post Workout:\n- Protein shake\n- Banana or apple\n- Greek yogurt with honey\n\nTips:\n- Eat every 3-4 hours\n- Include protein with every meal\n- Stay hydrated\n- Focus on whole foods\n- Consider protein timing around workouts",
 
-Lunch (12:00 PM - 1:00 PM):
-- Grilled chicken breast with mixed vegetables
-- Quinoa or brown rice (1/2 cup)
-- Large salad with olive oil dressing
-- Water or herbal tea
+    'maintenance' => "This meal plan maintains your current weight:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Whole grain toast with avocado\n- Scrambled eggs or Greek yogurt\n- Fresh fruit\n- Green tea or coffee\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled chicken or fish\n- Mixed salad with olive oil\n- Whole grain wrap or brown rice\n- Fresh vegetables\n\nDinner (6:00 PM - 7:00 PM):\n- Lean protein (chicken, fish, or tofu)\n- Roasted vegetables\n- Quinoa or sweet potato\n- Small portion of healthy fats\n\nSnacks:\n- Greek yogurt with berries\n- Handful of nuts\n- Apple with almond butter\n\nTips:\n- Balance protein, carbs, and healthy fats\n- Stay active throughout the day\n- Listen to your hunger cues\n- Stay hydrated",
 
-Dinner (6:00 PM - 7:00 PM):
-- Baked fish (salmon or tilapia)
-- Steamed vegetables
-- Sweet potato or small portion of whole grain
-- Herbal tea
+    'other' => "This meal plan promotes overall health:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Overnight oats with fruits and nuts\n- Greek yogurt with honey\n- Green smoothie (spinach, banana, berries)\n- Herbal tea\n\nLunch (12:00 PM - 1:00 PM):\n- Mediterranean bowl (quinoa, chickpeas, vegetables)\n- Grilled chicken or fish\n- Large mixed salad\n- Olive oil dressing\n\nDinner (6:00 PM - 7:00 PM):\n- Baked salmon or lean protein\n- Roasted vegetables\n- Brown rice or sweet potato\n- Herbal tea\n\nSnacks:\n- Fresh fruits\n- Raw vegetables with hummus\n- Mixed nuts and seeds\n\nTips:\n- Include a variety of colorful vegetables\n- Choose whole grains over refined\n- Stay hydrated with water\n- Limit processed foods\n- Practice mindful eating",
 
-Snacks (if needed):
-- Apple with 1 tbsp almond butter
-- Carrot sticks with hummus
-- Handful of mixed nuts
+    // Health Condition Specific Plans
+    'diabetes' => "This meal plan is specifically designed for diabetes management:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Steel-cut oats with cinnamon and berries\n- Greek yogurt with chia seeds\n- Whole grain toast with avocado\n- Green tea or black coffee (no sugar)\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled chicken or fish\n- Large mixed salad with olive oil\n- Quinoa or brown rice (1/3 cup)\n- Steamed vegetables\n\nDinner (6:00 PM - 7:00 PM):\n- Baked fish or lean protein\n- Roasted vegetables\n- Small portion of whole grains\n- Herbal tea\n\nSnacks (if needed):\n- Apple with 1 tbsp almond butter\n- Raw vegetables with hummus\n- Handful of nuts\n\nTips:\n- Monitor carbohydrate intake\n- Choose low glycemic index foods\n- Stay hydrated with water\n- Regular meal timing\n- Limit processed foods and added sugars",
 
-Tips:
-- Stay hydrated with water throughout the day
-- Limit processed foods and added sugars
-- Focus on protein and fiber-rich foods
-- Practice portion control",
+    'hypertension' => "This meal plan is designed for blood pressure management:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Oatmeal with banana and walnuts\n- Greek yogurt with berries\n- Whole grain toast\n- Green tea\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled chicken or fish\n- Large salad with olive oil\n- Quinoa or brown rice\n- Steamed vegetables\n\nDinner (6:00 PM - 7:00 PM):\n- Baked fish or lean protein\n- Roasted vegetables\n- Sweet potato\n- Herbal tea\n\nSnacks:\n- Fresh fruits\n- Raw vegetables\n- Unsalted nuts\n\nTips:\n- Limit sodium intake\n- Focus on potassium-rich foods\n- Stay hydrated\n- Regular meal timing\n- Include heart-healthy fats",
 
-    'muscle_gain' => "This meal plan is optimized for muscle growth:
+    'heart_disease' => "This heart-healthy meal plan:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Oatmeal with berries and walnuts\n- Greek yogurt with honey\n- Whole grain toast with avocado\n- Green tea\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled fish or lean protein\n- Large salad with olive oil\n- Quinoa or brown rice\n- Steamed vegetables\n\nDinner (6:00 PM - 7:00 PM):\n- Baked salmon or lean protein\n- Roasted vegetables\n- Sweet potato\n- Herbal tea\n\nSnacks:\n- Fresh fruits\n- Raw vegetables with hummus\n- Unsalted nuts\n\nTips:\n- Focus on omega-3 rich foods\n- Limit saturated fats\n- Include plenty of vegetables\n- Choose lean proteins\n- Stay hydrated",
 
-Breakfast (7:00 AM - 8:00 AM):
-- 3-4 whole eggs with whole grain toast
-- Protein smoothie (banana, protein powder, milk, peanut butter)
-- Oatmeal with honey and nuts
+    'celiac' => "This gluten-free meal plan:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Gluten-free oats with berries\n- Greek yogurt with honey\n- Gluten-free toast with avocado\n- Green tea\n\nLunch (12:00 PM - 1:00 PM):\n- Grilled chicken or fish\n- Large salad with olive oil\n- Quinoa or brown rice\n- Steamed vegetables\n\nDinner (6:00 PM - 7:00 PM):\n- Baked fish or lean protein\n- Roasted vegetables\n- Sweet potato or quinoa\n- Herbal tea\n\nSnacks:\n- Fresh fruits\n- Raw vegetables with hummus\n- Gluten-free crackers with nut butter\n\nTips:\n- Always check food labels\n- Avoid cross-contamination\n- Focus on naturally gluten-free foods\n- Stay hydrated\n- Regular meal timing",
+    
+    // Age-Specific Notes/Modifications (can be appended to existing plans)
+    'child_notes' => "\n\nNotes for Children:\n- Ensure portion sizes are appropriate for a child.\n- Offer variety and make meals visually appealing.\n- Include healthy snacks between meals.\n- Encourage adequate calcium intake from dairy or fortified alternatives.",
+    
+    'old_notes' => "\n\nNotes for Older Adults:\n- Focus on nutrient-dense foods.\n- Ensure adequate protein intake to maintain muscle mass.\n- Stay well-hydrated.\n- Consider softer textures if chewing or swallowing is difficult.\n- Ensure sufficient intake of Vitamin D, Calcium, and Vitamin B12.",
 
-Lunch (12:00 PM - 1:00 PM):
-- Grilled chicken breast or lean beef
-- Brown rice or sweet potato
-- Mixed vegetables
-- Greek yogurt
+    // Vegan-specific meal plans
+    'vegan_weight_loss' => "This vegan meal plan is designed for healthy weight loss:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Overnight oats with almond milk, berries, and chia seeds\n- Tofu scramble with vegetables\n- Green tea or black coffee\n\nLunch (12:00 PM - 1:00 PM):\n- Buddha bowl with quinoa, roasted vegetables, and chickpeas\n- Large salad with tahini dressing\n- Water or herbal tea\n\nDinner (6:00 PM - 7:00 PM):\n- Lentil curry with brown rice\n- Steamed vegetables\n- Herbal tea\n\nSnacks (if needed):\n- Apple with 1 tbsp almond butter\n- Carrot sticks with hummus\n- Handful of mixed nuts\n\nTips:\n- Stay hydrated with water throughout the day\n- Focus on plant-based protein sources\n- Include a variety of vegetables\n- Practice portion control",
 
-Dinner (6:00 PM - 7:00 PM):
-- Salmon or lean meat
-- Quinoa or brown rice
-- Steamed vegetables
-- Avocado or olive oil
+    'vegan_muscle_gain' => "This vegan meal plan is optimized for muscle growth:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Protein smoothie (banana, plant-based protein powder, almond milk, peanut butter)\n- Tofu scramble with vegetables\n- Oatmeal with nuts and seeds\n\nLunch (12:00 PM - 1:00 PM):\n- Tempeh or seitan stir-fry with brown rice\n- Mixed vegetables\n- Hummus with whole grain pita\n\nDinner (6:00 PM - 7:00 PM):\n- Lentil or chickpea curry\n- Quinoa or brown rice\n- Roasted vegetables\n- Avocado or olive oil\n\nPre/Post Workout:\n- Plant-based protein shake\n- Banana or apple\n- Trail mix with nuts and seeds\n\nTips:\n- Eat every 3-4 hours\n- Include plant-based protein with every meal\n- Stay hydrated\n- Focus on whole foods\n- Consider protein timing around workouts",
 
-Pre/Post Workout:
-- Protein shake
-- Banana or apple
-- Greek yogurt with honey
-
-Tips:
-- Eat every 3-4 hours
-- Include protein with every meal
-- Stay hydrated
-- Focus on whole foods
-- Consider protein timing around workouts",
-
-    'maintenance' => "This meal plan maintains your current weight:
-
-Breakfast (7:00 AM - 8:00 AM):
-- Whole grain toast with avocado
-- Scrambled eggs or Greek yogurt
-- Fresh fruit
-- Green tea or coffee
-
-Lunch (12:00 PM - 1:00 PM):
-- Grilled chicken or fish
-- Mixed salad with olive oil
-- Whole grain wrap or brown rice
-- Fresh vegetables
-
-Dinner (6:00 PM - 7:00 PM):
-- Lean protein (chicken, fish, or tofu)
-- Roasted vegetables
-- Quinoa or sweet potato
-- Small portion of healthy fats
-
-Snacks:
-- Greek yogurt with berries
-- Handful of nuts
-- Apple with almond butter
-
-Tips:
-- Balance protein, carbs, and healthy fats
-- Stay active throughout the day
-- Listen to your hunger cues
-- Stay hydrated",
-
-    'general_health' => "This meal plan promotes overall health:
-
-Breakfast (7:00 AM - 8:00 AM):
-- Overnight oats with fruits and nuts
-- Greek yogurt with honey
-- Green smoothie (spinach, banana, berries)
-- Herbal tea
-
-Lunch (12:00 PM - 1:00 PM):
-- Mediterranean bowl (quinoa, chickpeas, vegetables)
-- Grilled chicken or fish
-- Large mixed salad
-- Olive oil dressing
-
-Dinner (6:00 PM - 7:00 PM):
-- Baked salmon or lean protein
-- Roasted vegetables
-- Brown rice or sweet potato
-- Herbal tea
-
-Snacks:
-- Fresh fruits
-- Raw vegetables with hummus
-- Mixed nuts and seeds
-
-Tips:
-- Include a variety of colorful vegetables
-- Choose whole grains over refined
-- Stay hydrated with water
-- Limit processed foods
-- Practice mindful eating"
+    'vegan_maintenance' => "This vegan meal plan maintains your current weight:\n\nBreakfast (7:00 AM - 8:00 AM):\n- Whole grain toast with avocado\n- Tofu scramble or plant-based yogurt\n- Fresh fruit\n- Green tea or coffee\n\nLunch (12:00 PM - 1:00 PM):\n- Buddha bowl with quinoa, vegetables, and legumes\n- Mixed salad with tahini dressing\n- Whole grain wrap or brown rice\n\nDinner (6:00 PM - 7:00 PM):\n- Plant-based protein (tofu, tempeh, or seitan)\n- Roasted vegetables\n- Quinoa or sweet potato\n- Small portion of healthy fats\n\nSnacks:\n- Plant-based yogurt with berries\n- Handful of nuts\n- Apple with almond butter\n\nTips:\n- Balance protein, carbs, and healthy fats\n- Stay active throughout the day\n- Listen to your hunger cues\n- Stay hydrated",
 ];
 
-// Get the appropriate description based on the goal
-$default_description = $meal_plan_descriptions[$survey['goal']] ?? $meal_plan_descriptions['general_health'];
+// Determine age group
+$age = $survey['age'] ?? 0; // Default to 0 if age is not set
+$age_group = '';
+if ($age > 0 && $age <= 12) {
+    $age_group = 'child';
+} elseif ($age > 12 && $age <= 60) {
+    $age_group = 'mid_age';
+} elseif ($age > 60) {
+    $age_group = 'old';
+}
+
+// Get the appropriate description based on goal, health conditions, and age group
+$health_conditions = explode(',', $survey['health_conditions'] ?? '');
+$dietary_restrictions = explode(',', $survey['dietary_restrictions'] ?? '');
+
+// Check for dietary restrictions first
+$is_vegan = in_array('vegan', array_map('strtolower', $dietary_restrictions));
+$is_vegetarian = in_array('vegetarian', array_map('strtolower', $dietary_restrictions));
+
+// Start with an empty description
+$default_description = '';
+
+// First, try to find a meal plan that matches both dietary restrictions and health conditions
+if (!empty($health_conditions)) {
+    foreach ($health_conditions as $condition) {
+        $condition_key = str_replace(' ', '_', strtolower(trim($condition)));
+        if ($is_vegan && isset($meal_plan_descriptions['vegan_' . $condition_key])) {
+            $default_description = $meal_plan_descriptions['vegan_' . $condition_key];
+            break;
+        } elseif ($is_vegetarian && isset($meal_plan_descriptions['vegetarian_' . $condition_key])) {
+            $default_description = $meal_plan_descriptions['vegetarian_' . $condition_key];
+            break;
+        } elseif (isset($meal_plan_descriptions[$condition_key])) {
+            $default_description = $meal_plan_descriptions[$condition_key];
+            break;
+        }
+    }
+}
+
+// If no health condition specific plan, try to find a meal plan that matches dietary restrictions and goal
+if (empty($default_description)) {
+    if ($is_vegan && isset($meal_plan_descriptions['vegan_' . $survey['goal']])) {
+        $default_description = $meal_plan_descriptions['vegan_' . $survey['goal']];
+    } elseif ($is_vegetarian && isset($meal_plan_descriptions['vegetarian_' . $survey['goal']])) {
+        $default_description = $meal_plan_descriptions['vegetarian_' . $survey['goal']];
+    } else {
+        $default_description = $meal_plan_descriptions[$survey['goal']] ?? $meal_plan_descriptions['maintenance'];
+    }
+}
+
+// Add age-specific notes
+if ($age_group === 'child' && isset($meal_plan_descriptions['child_notes'])) {
+    $default_description .= $meal_plan_descriptions['child_notes'];
+} elseif ($age_group === 'old' && isset($meal_plan_descriptions['old_notes'])) {
+    $default_description .= $meal_plan_descriptions['old_notes'];
+}
+
+// Only add dietary restriction notes if we're using a non-restricted meal plan
+if (!empty($dietary_restrictions) && !$is_vegan && !$is_vegetarian) {
+    $modifications = [];
+    foreach ($dietary_restrictions as $restriction) {
+        $restriction_key = str_replace(' ', '_', strtolower(trim($restriction)));
+        if (isset($meal_plan_descriptions[$restriction_key . '_notes'])) {
+            $modifications[] = $meal_plan_descriptions[$restriction_key . '_notes'];
+        } else if (in_array($restriction_key, ['vegetarian', 'vegan', 'lactose_free'])) {
+            if ($restriction_key === 'vegetarian') {
+                $modifications[] = "Note: This meal plan has been modified to be vegetarian. All meat options can be replaced with plant-based proteins like tofu, tempeh, or legumes.";
+            } elseif ($restriction_key === 'vegan') {
+                $modifications[] = "Note: This meal plan has been modified to be vegan. All animal products have been replaced with plant-based alternatives.";
+            } elseif ($restriction_key === 'lactose_free') {
+                $modifications[] = "Note: This meal plan has been modified to be lactose-free. Dairy products have been replaced with lactose-free alternatives.";
+            }
+        } else {
+            $modifications[] = "Note: This meal plan should be adjusted to adhere to " . htmlspecialchars(trim($restriction)) . " dietary restrictions.";
+        }
+    }
+    
+    if (!empty($modifications)) {
+        $default_description .= "\n\n" . implode("\n", $modifications);
+    }
+}
+
+// Add food allergies warning if present
+if (!empty($survey['food_allergies'])) {
+    $default_description .= "\n\nIMPORTANT: Please be aware of the following food allergies: " . htmlspecialchars($survey['food_allergies']);
+}
 
 $error = '';
 
@@ -327,8 +355,16 @@ if ($_SERVER['REQUEST_METHOD'] === 'POST') {
                             </div>
                         </div>
                         <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-sm text-gray-500">Health Conditions</p>
+                            <p class="font-medium text-gray-800"><?= !empty($survey['health_conditions']) ? htmlspecialchars($survey['health_conditions']) : 'None' ?></p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
                             <p class="text-sm text-gray-500">Dietary Restrictions</p>
-                            <p class="font-medium text-gray-800"><?= htmlspecialchars($survey['dietary_restrictions']) ?></p>
+                            <p class="font-medium text-gray-800"><?= !empty($survey['dietary_restrictions']) ? htmlspecialchars($survey['dietary_restrictions']) : 'None' ?></p>
+                        </div>
+                        <div class="bg-gray-50 p-3 rounded-lg">
+                            <p class="text-sm text-gray-500">Food Allergies</p>
+                            <p class="font-medium text-gray-800"><?= !empty($survey['food_allergies']) ? htmlspecialchars($survey['food_allergies']) : 'None' ?></p>
                         </div>
                         <div class="bg-gray-50 p-3 rounded-lg">
                             <p class="text-sm text-gray-500">Additional Notes</p>
