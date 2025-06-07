@@ -338,7 +338,7 @@ function formatTime($time) {
         </div>
     </div>
 
-    <?php if (!$meal_plan['is_viewed']): ?>
+    <?php if (isset($meal_plan['is_viewed']) && !$meal_plan['is_viewed']): ?>
     <script>
         // Show welcome notification when viewing meal plan for the first time
         document.addEventListener('DOMContentLoaded', function() {
