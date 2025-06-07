@@ -66,8 +66,7 @@ if (!$meal_plan) {
         @media (max-width: 1023px) {
             #surveyPopup {
                 z-index: 9999 !important;
-                display: block !important; /* Ensure it's not hidden by a parent */
-                /* Added for further mobile troubleshooting */
+                display: block !important;
                 position: fixed !important;
                 top: 0 !important;
                 left: 0 !important;
@@ -76,15 +75,30 @@ if (!$meal_plan) {
                 overflow: auto !important;
             }
              #surveyPopup > div {
-                 /* Target the inner container to ensure content is centered */
                  min-height: 100vh;
                  display: flex;
                  align-items: center;
                  justify-content: center;
-                 padding: 1rem; /* Add some padding */
+                 padding: 1rem;
              }
         }
 
+        /* Custom color overrides */
+        .bg-primary {
+            background-color: #1E40AF !important;
+        }
+        .hover\:bg-primary-dark:hover {
+            background-color: #1E3A8A !important;
+        }
+        .text-primary {
+            color: #1E40AF !important;
+        }
+        .bg-light-blue {
+            background-color: #EFF6FF !important;
+        }
+        .bg-gradient-to-r {
+            background-image: linear-gradient(to right, #1E40AF, #3B82F6) !important;
+        }
     </style>
     <script>
     // Tailwind config
@@ -92,11 +106,11 @@ if (!$meal_plan) {
         theme: {
             extend: {
                 colors: {
-                    primary: '#2563EB',
-                    secondary: '#1E40AF',
-                    accent: '#60A5FA',
-                    'light-blue': '#EFF6FF',
-                    'dark-blue': '#1E3A8A'
+                    primary: '#1E40AF', // Darker blue
+                    secondary: '#3B82F6', // Medium blue
+                    accent: '#60A5FA', // Light blue
+                    'light-blue': '#EFF6FF', // Very light blue
+                    'dark-blue': '#1E3A8A' // Darkest blue
                 }
             }
         }
